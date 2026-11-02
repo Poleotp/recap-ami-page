@@ -32,17 +32,18 @@ function show(html) { document.open(); document.write(html); document.close(); }
 async function start() {
   let token = get(TOKEN_KEY);
   if (!token) {
-    token = (prompt('Colle ton jeton GitHub (lecture seule du dépôt recap-ami) :') || '').trim();
+    token = (prompt('Colle ton jeton GitHub (lecture seule du dépôt recap-ami) :') || '').replace(/\s+/g, '');
     if (!token) return msg('Jeton GitHub manquant.', true);
     set(TOKEN_KEY, token);
   }
   try {
     const res = await fetch(APP, { cache: 'no-store', signal: AbortSignal.timeout(15000),
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.raw+json' } });
-    if (res.status === 401 || res.status === 403 || res.status === 404) {
-      set(TOKEN_KEY, null);
-      return msg('Jeton GitHub refusé, expiré ou sans accès au dépôt recap-ami.', true);
+    if (res.status === 401 || res.status === 403) {
+      set(TOKEN_KEY, null); // jeton refusé ou expiré : on le redemande
+      return msg('Jeton GitHub refusé ou expiré (erreur ' + res.status + ').', true);
     }
+    if (res.status === 404) return msg('Dépôt introuvable pour ce jeton (erreur 404) : vérifie qu’il donne accès au dépôt recap-ami.', true);
     if (!res.ok) throw new Error(`GitHub ${res.status}`);
     const html = await res.text();
     set(CACHE_KEY, html);
